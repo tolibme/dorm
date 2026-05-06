@@ -1,0 +1,62 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List
+from datetime import datetime
+
+import models
+from schemas.maintenance import MaintenanceCreate, MaintenanceUpdate, MaintenanceResponse
+from database import get_db
+
+router = APIRouter(prefix="/maintenance", tags=["Maintenance"])
+
+
+@router.get("/", response_model=List[MaintenanceResponse])
+def list_requests(db: Session = Depends(get_db)):
+    return db.query(models.MaintenanceRequest).all()
+
+
+@router.get("/{request_id}", response_model=MaintenanceResponse)
+def get_request(request_id: int, db: Session = Depends(get_db)):
+    obj = db.query(models.MaintenanceRequest).filter(models.MaintenanceRequest.request_id == request_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Maintenance request not found")
+    return obj
+
+
+@router.post("/", response_model=MaintenanceResponse, status_code=status.HTTP_201_CREATED)
+def create_request(payload: MaintenanceCreate, db: Session = Depends(get_db)):
+    if not db.query(models.Room).filter(models.Room.room_id == payload.room_id).first():
+        raise HTTPException(status_code=404, detail="Room not found")
+    if not db.query(models.Student).filter(models.Student.student_id == payload.student_id).first():
+        raise HTTPException(status_code=404, detail="Student not found")
+    obj = models.MaintenanceRequest(**payload.model_dump())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.patch("/{request_id}", response_model=MaintenanceResponse)
+def update_request(request_id: int, payload: MaintenanceUpdate, db: Session = Depends(get_db)):
+    obj = db.query(models.MaintenanceRequest).filter(models.MaintenanceRequest.request_id == request_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Maintenance request not found")
+    if payload.assigned_to and not db.query(models.Staff).filter(models.Staff.staff_id == payload.assigned_to).first():
+        raise HTTPException(status_code=404, detail="Staff not found")
+    update_data = payload.model_dump(exclude_unset=True)
+    if update_data.get("status") == "resolved" and not update_data.get("resolved_at"):
+        update_data["resolved_at"] = datetime.utcnow()
+    for k, v in update_data.items():
+        setattr(obj, k, v)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.delete("/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_request(request_id: int, db: Session = Depends(get_db)):
+    obj = db.query(models.MaintenanceRequest).filter(models.MaintenanceRequest.request_id == request_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Maintenance request not found")
+    db.delete(obj)
+    db.commit()
