@@ -2,12 +2,12 @@
 import { useEffect, useState } from 'react'
 import api from '@/lib/axios'
 import Badge from '@/components/Badge'
-import { useAuth } from '@/context/AuthContext'
+import { useRequiredAuth } from '@/context/AuthContext'
 import type { Assignment, Room, Dormitory } from '@/lib/types'
 
 export default function MyRoomPage() {
-  const { user } = useAuth()
-  const studentId = user!.user_id
+  const user = useRequiredAuth()
+  const studentId = user.user_id
 
   const [assignment, setAssignment] = useState<Assignment | null>(null)
   const [room, setRoom] = useState<Room | null>(null)
@@ -16,19 +16,16 @@ export default function MyRoomPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get<Assignment[]>('/assignments/').then(async r => {
-      const active = r.data.find(x => x.student_id === studentId && x.status === 'active')
+    api.get<Assignment[]>('/assignments/', { params: { status: 'active' } }).then(async r => {
+      const active = r.data[0]
       if (active) {
         setAssignment(active)
-        const [roomRes, allAssign] = await Promise.all([
-          api.get<Room>(`/rooms/${active.room_id}`),
-          api.get<Assignment[]>('/assignments/'),
-        ])
+        const roomRes = await api.get<Room>(`/rooms/${active.room_id}`)
         const rm = roomRes.data
         setRoom(rm)
         const dRes = await api.get<Dormitory>(`/dormitories/${rm.dorm_id}`)
         setDorm(dRes.data)
-        setRoomates(allAssign.data.filter(a => a.room_id === active.room_id && a.student_id !== studentId && a.status === 'active').length)
+        setRoomates(Math.max(0, rm.current_occupancy - 1))
       }
     }).finally(() => setLoading(false))
   }, [studentId])

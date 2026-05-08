@@ -3,33 +3,25 @@ import { useEffect, useState } from 'react'
 import api from '@/lib/axios'
 import Badge from '@/components/Badge'
 import DataTable, { Column } from '@/components/DataTable'
-import { useAuth } from '@/context/AuthContext'
 import type { Payment } from '@/lib/types'
 
 export default function PaymentsPage() {
-  const { user } = useAuth()
-  const studentId = user!.user_id
-
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState<number | null>(null)
 
   const fetchPayments = () => {
     api.get<Payment[]>('/payments/')
-      .then(r => setPayments(r.data.filter(p => p.student_id === studentId)))
+      .then(r => setPayments(r.data))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchPayments() }, [studentId])
+  useEffect(() => { fetchPayments() }, [])
 
   const handlePay = async (paymentId: number) => {
     setPaying(paymentId)
     try {
-      await api.patch(`/payments/${paymentId}`, {
-        status: 'paid',
-        paid_date: new Date().toISOString().split('T')[0],
-        receipt_number: `RCP-${Date.now()}`,
-      })
+      await api.patch(`/payments/${paymentId}`, { status: 'paid' })
       fetchPayments()
     } finally {
       setPaying(null)
@@ -42,6 +34,7 @@ export default function PaymentsPage() {
     { header: 'Amount',    accessor: r => `$${r.amount}` },
     { header: 'Due Date',  accessor: 'due_date' },
     { header: 'Paid Date', accessor: r => r.paid_date ?? '—' },
+    { header: 'Receipt',   accessor: r => r.receipt_number ?? '—' },
     { header: 'Status',    accessor: r => <Badge status={r.status} /> },
     {
       header: 'Action',

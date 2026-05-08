@@ -49,6 +49,8 @@ export interface Application {
   applied_at: string
   reviewed_at?: string
   reviewed_by?: number
+  student_name?: string
+  dorm_name?: string
 }
 
 export interface Assignment {

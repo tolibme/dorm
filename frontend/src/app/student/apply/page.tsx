@@ -1,12 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 import api from '@/lib/axios'
-import { useAuth } from '@/context/AuthContext'
+import { useRequiredAuth } from '@/context/AuthContext'
 import type { Dormitory } from '@/lib/types'
 
 export default function ApplyPage() {
-  const { user } = useAuth()
-  const studentId = user!.user_id
+  const user = useRequiredAuth()
+  const studentId = user.user_id
 
   const [dorms, setDorms] = useState<Dormitory[]>([])
   const [form, setForm] = useState({ dorm_id: '', preferred_move_in: '', room_preference: 'double' })

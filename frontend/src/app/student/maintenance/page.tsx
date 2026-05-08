@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react'
 import api from '@/lib/axios'
 import Badge from '@/components/Badge'
 import DataTable, { Column } from '@/components/DataTable'
-import { useAuth } from '@/context/AuthContext'
+import { useRequiredAuth } from '@/context/AuthContext'
 import type { MaintenanceRequest, Assignment } from '@/lib/types'
 
 const categories = ['Plumbing', 'Electrical', 'HVAC', 'Furniture', 'General']
 
 export default function StudentMaintenancePage() {
-  const { user } = useAuth()
-  const studentId = user!.user_id
+  const user = useRequiredAuth()
+  const studentId = user.user_id
 
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
   const [roomId, setRoomId] = useState<number | null>(null)
@@ -21,14 +21,13 @@ export default function StudentMaintenancePage() {
   const fetchData = async () => {
     const [mr, as] = await Promise.all([
       api.get<MaintenanceRequest[]>('/maintenance/'),
-      api.get<Assignment[]>('/assignments/'),
+      api.get<Assignment[]>('/assignments/', { params: { status: 'active' } }),
     ])
-    setRequests(mr.data.filter(r => r.student_id === studentId))
-    const active = as.data.find(a => a.student_id === studentId && a.status === 'active')
-    setRoomId(active?.room_id ?? null)
+    setRequests(mr.data)
+    setRoomId(as.data[0]?.room_id ?? null)
   }
 
-  useEffect(() => { fetchData() }, [studentId])
+  useEffect(() => { fetchData() }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

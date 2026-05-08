@@ -1,17 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List
 
 import models
 from schemas.staff import StaffCreate, StaffUpdate, StaffResponse
 from database import get_db
+from auth import require_staff
 
-router = APIRouter(prefix="/staff", tags=["Staff"])
+router = APIRouter(prefix="/staff", tags=["Staff"], dependencies=[Depends(require_staff)])
 
 
 @router.get("/", response_model=List[StaffResponse])
-def list_staff(db: Session = Depends(get_db)):
-    return db.query(models.Staff).all()
+def list_staff(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+):
+    return db.query(models.Staff).offset(skip).limit(limit).all()
 
 
 @router.get("/{staff_id}", response_model=StaffResponse)

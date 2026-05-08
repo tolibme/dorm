@@ -4,7 +4,9 @@ sqlalchemy
 psycopg2-binary
 python-dotenv
 pydantic
+pydantic[email]
 alembic
 python-dateutil
 bcrypt
 python-jose[cryptography]
+slowapi

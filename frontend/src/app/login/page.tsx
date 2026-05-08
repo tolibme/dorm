@@ -23,8 +23,9 @@ export default function LoginPage() {
     setSubmitting(true)
     try {
       const res = await api.post('/auth/login', form)
-      login(res.data)
-      router.push(res.data.role === 'student' ? '/student/dashboard' : '/admin/dashboard')
+      const { access_token, role, user_id, name } = res.data
+      login({ token: access_token, role, user_id, name })
+      router.push(role === 'student' ? '/student/dashboard' : '/admin/dashboard')
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       setError(msg ?? 'Login failed. Please try again.')

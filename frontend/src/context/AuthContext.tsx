@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
 })
 
-const STORAGE_KEY = 'dorm_auth'
+export const STORAGE_KEY = 'dorm_auth'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -37,6 +37,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
+
+    const onUnauthorized = () => {
+      setUser(null)
+      localStorage.removeItem(STORAGE_KEY)
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
+    window.addEventListener('auth:unauthorized', onUnauthorized)
+    return () => window.removeEventListener('auth:unauthorized', onUnauthorized)
   }, [])
 
   const login = (u: AuthUser) => {
@@ -57,3 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export const useAuth = () => useContext(AuthContext)
+
+export function useRequiredAuth(): AuthUser {
+  const { user } = useAuth()
+  if (!user) throw new Error('useRequiredAuth: user is not authenticated')
+  return user
+}

@@ -1,17 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
-import models
-from database import engine, Base
-from routers import staff, students, dormitories, rooms, applications, assignments, payments, maintenance, reports, auth
-
-Base.metadata.create_all(bind=engine)
+import models  # noqa: F401 — register models with Base metadata
+from routers import (
+    staff, students, dormitories, rooms, applications,
+    assignments, payments, maintenance, reports, auth,
+)
+from routers.auth import limiter
 
 app = FastAPI(
     title="University Dormitory Management System",
     description="REST API for managing university dormitories — rooms, students, applications, payments, and maintenance.",
     version="1.0.0",
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,

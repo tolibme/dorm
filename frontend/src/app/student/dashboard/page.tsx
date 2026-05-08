@@ -4,13 +4,9 @@ import { BedDouble, CreditCard, Wrench, FileText } from 'lucide-react'
 import StatCard from '@/components/StatCard'
 import Badge from '@/components/Badge'
 import api from '@/lib/axios'
-import { useAuth } from '@/context/AuthContext'
 import type { Assignment, Payment, MaintenanceRequest, Application, Room } from '@/lib/types'
 
 export default function StudentDashboard() {
-  const { user } = useAuth()
-  const studentId = user!.user_id
-
   const [assignment, setAssignment] = useState<Assignment | null>(null)
   const [room, setRoom] = useState<Room | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
@@ -20,23 +16,22 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     Promise.all([
-      api.get<Assignment[]>('/assignments/'),
+      api.get<Assignment[]>('/assignments/', { params: { status: 'active' } }),
       api.get<Payment[]>('/payments/'),
       api.get<MaintenanceRequest[]>('/maintenance/'),
-      api.get<Application[]>('/applications/'),
+      api.get<Application[]>('/applications/', { params: { status: 'pending' } }),
     ]).then(async ([a, p, m, app]) => {
-      const active = a.data.find(x => x.student_id === studentId && x.status === 'active') ?? null
+      const active = a.data[0] ?? null
       setAssignment(active)
       if (active) {
         const r = await api.get<Room>(`/rooms/${active.room_id}`)
         setRoom(r.data)
       }
-      setPayments(p.data.filter(x => x.student_id === studentId && x.status !== 'paid'))
-      setMaintenance(m.data.filter(x => x.student_id === studentId && x.status !== 'resolved'))
-      const pending = app.data.find(x => x.student_id === studentId && x.status === 'pending') ?? null
-      setApplication(pending)
+      setPayments(p.data.filter(x => x.status !== 'paid'))
+      setMaintenance(m.data.filter(x => x.status !== 'resolved'))
+      setApplication(app.data[0] ?? null)
     }).finally(() => setLoading(false))
-  }, [studentId])
+  }, [])
 
   if (loading) return <p className="text-gray-400 animate-pulse">Loading…</p>
 

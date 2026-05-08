@@ -5,8 +5,9 @@ from datetime import date
 
 import models
 from database import get_db
+from auth import require_staff
 
-router = APIRouter(prefix="/reports", tags=["Reports"])
+router = APIRouter(prefix="/reports", tags=["Reports"], dependencies=[Depends(require_staff)])
 
 
 @router.get("/occupancy")

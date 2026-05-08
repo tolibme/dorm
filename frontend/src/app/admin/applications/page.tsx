@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react'
 import api from '@/lib/axios'
 import Badge from '@/components/Badge'
 import DataTable, { Column } from '@/components/DataTable'
-import { useAuth } from '@/context/AuthContext'
-import type { Application, Room, Student, Dormitory } from '@/lib/types'
+import type { Application, Room } from '@/lib/types'
 
 interface ReviewModal {
   app: Application
@@ -12,12 +11,7 @@ interface ReviewModal {
 }
 
 export default function ApplicationsPage() {
-  const { user } = useAuth()
-  const staffId = user!.user_id
-
   const [applications, setApplications] = useState<Application[]>([])
-  const [students, setStudents] = useState<Record<number, Student>>({})
-  const [dorms, setDorms] = useState<Record<number, Dormitory>>({})
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<ReviewModal | null>(null)
   const [selectedRoom, setSelectedRoom] = useState('')
@@ -25,31 +19,21 @@ export default function ApplicationsPage() {
   const [reviewing, setReviewing] = useState(false)
 
   const fetchAll = async () => {
-    const [a, s, d] = await Promise.all([
-      api.get<Application[]>('/applications/'),
-      api.get<Student[]>('/students/'),
-      api.get<Dormitory[]>('/dormitories/'),
-    ])
-    setApplications(a.data)
-    setStudents(Object.fromEntries(s.data.map(x => [x.student_id, x])))
-    setDorms(Object.fromEntries(d.data.map(x => [x.dorm_id, x])))
+    const res = await api.get<Application[]>('/applications/')
+    setApplications(res.data)
   }
 
   useEffect(() => { fetchAll().finally(() => setLoading(false)) }, [])
 
   const openApproveModal = async (app: Application) => {
-    const r = await api.get<Room[]>('/rooms/available')
-    const dormRooms = r.data.filter(x => x.dorm_id === app.dorm_id)
+    const r = await api.get<Room[]>('/rooms/available', { params: { dorm_id: app.dorm_id } })
     setSelectedRoom('')
     setCheckOut('')
-    setModal({ app, rooms: dormRooms })
+    setModal({ app, rooms: r.data })
   }
 
   const handleReject = async (app: Application) => {
-    await api.patch(`/applications/${app.application_id}/review`, {
-      action: 'rejected',
-      reviewed_by: staffId,
-    })
+    await api.patch(`/applications/${app.application_id}/review`, { action: 'rejected' })
     fetchAll()
   }
 
@@ -59,7 +43,6 @@ export default function ApplicationsPage() {
     try {
       await api.patch(`/applications/${modal.app.application_id}/review`, {
         action: 'approved',
-        reviewed_by: staffId,
         room_id: Number(selectedRoom),
         check_out_date: checkOut || null,
       })
@@ -72,8 +55,8 @@ export default function ApplicationsPage() {
 
   const columns: Column<Application>[] = [
     { header: 'ID',       accessor: 'application_id' },
-    { header: 'Student',  accessor: r => students[r.student_id]?.full_name ?? r.student_id },
-    { header: 'Dorm',     accessor: r => dorms[r.dorm_id]?.name ?? r.dorm_id },
+    { header: 'Student',  accessor: r => r.student_name ?? r.student_id },
+    { header: 'Dorm',     accessor: r => r.dorm_name ?? r.dorm_id },
     { header: 'Pref. Move-in', accessor: r => r.preferred_move_in ?? '—' },
     { header: 'Room Pref', accessor: r => <span className="capitalize">{r.room_preference ?? '—'}</span> },
     { header: 'Applied',  accessor: r => r.applied_at.slice(0, 10) },
@@ -108,7 +91,7 @@ export default function ApplicationsPage() {
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
             <h3 className="font-semibold text-gray-900 mb-1">Approve Application #{modal.app.application_id}</h3>
             <p className="text-sm text-gray-400 mb-4">
-              Student: {students[modal.app.student_id]?.full_name} · Dorm: {dorms[modal.app.dorm_id]?.name}
+              Student: {modal.app.student_name ?? modal.app.student_id} · Dorm: {modal.app.dorm_name ?? modal.app.dorm_id}
             </p>
 
             <div className="space-y-3">
